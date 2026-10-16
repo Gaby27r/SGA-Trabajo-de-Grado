@@ -90,8 +90,8 @@ async function normalizar_crudos(
   // 2. Promedio de notas bajo.
   // Un promedio alto produce un indicador de riesgo bajo.
 
-  const notaP1 = numeroValido(usuario_crudo.promedio_notas_P1);
-  const notaP2 = numeroValido(usuario_crudo.promedio_notas_P2);
+  const notaP1 = numeroValido(usuario_crudo.promedio_notas_p1);
+  const notaP2 = numeroValido(usuario_crudo.promedio_notas_p2);
 
   const promedio_notas_bajo =
     notaP1 === null || notaP2 === null
@@ -171,11 +171,11 @@ async function normalizar_crudos(
   // Si falta un dato, se mantiene null: no se asume que equivale a cero.
 
   const leves = numeroValido(
-    usuario_crudo.incidentes_disciplinarios_L
+    usuario_crudo.incidentes_disciplinarios_l
   );
 
   const graves = numeroValido(
-    usuario_crudo.incidentes_disciplinarios_G
+    usuario_crudo.incidentes_disciplinarios_g
   );
 
   const incidentes_disciplinarios =
@@ -278,16 +278,16 @@ async function normalizar_crudos(
   if (promedio_notas_bajo === null) {
     console.warn("[Notas no disponibles]", {
       id_estudiante: usuario_crudo.id_estudiante,
-      P1: usuario_crudo.promedio_notas_P1,
-      P2: usuario_crudo.promedio_notas_P2,
+      P1: usuario_crudo.promedio_notas_p1,
+      P2: usuario_crudo.promedio_notas_p2,
     });
   }
 
   if (incidentes_disciplinarios === null) {
     console.warn("[Incidentes no disponibles]", {
       id_estudiante: usuario_crudo.id_estudiante,
-      leves: usuario_crudo.incidentes_disciplinarios_L,
-      graves: usuario_crudo.incidentes_disciplinarios_G,
+      leves: usuario_crudo.incidentes_disciplinarios_l,
+      graves: usuario_crudo.incidentes_disciplinarios_g,
     });
   }
 

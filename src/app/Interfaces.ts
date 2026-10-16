@@ -2,14 +2,14 @@ export interface datos_crudos {
     id_estudiante: string;
     nombre_estudiante: string;
     racha_ausencias: number;
-    promedio_notas_P1: number;
-    promedio_notas_P2: number;
+    promedio_notas_p1: number;
+    promedio_notas_p2: number;
     repitio_anio: string;
     estrato_estudiante: number;
     edad_estudiante: number;
     grado_actual: string;
-    incidentes_disciplinarios_L: number;
-    incidentes_disciplinarios_G: number;
+    incidentes_disciplinarios_l: number;
+    incidentes_disciplinarios_g: number;
     tipo_beca: string;
     tardanzas_estudiante: number;
     ausencias_injustificadas: number;

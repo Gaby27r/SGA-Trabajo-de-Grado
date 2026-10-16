@@ -41,14 +41,14 @@ export function generarFactoresPreocupacion(
 
     // Rendimiento académico
     const notas = [
-        estudiante.promedio_notas_P1,
-        estudiante.promedio_notas_P2,
+        estudiante.promedio_notas_p1,
+        estudiante.promedio_notas_p2,
     ];
 
     if (notas.every(Number.isFinite)) {
         const promedio =
-            (estudiante.promedio_notas_P1 +
-                estudiante.promedio_notas_P2) / 2;
+            (estudiante.promedio_notas_p1 +
+                estudiante.promedio_notas_p2) / 2;
 
         if (promedio < 3) {
             factores.push({
@@ -108,8 +108,8 @@ export function generarFactoresPreocupacion(
     }
 
     // Incidentes disciplinarios
-    const leves = estudiante.incidentes_disciplinarios_L;
-    const graves = estudiante.incidentes_disciplinarios_G;
+    const leves = estudiante.incidentes_disciplinarios_l;
+    const graves = estudiante.incidentes_disciplinarios_g;
 
     if (
         Number.isFinite(leves) &&
