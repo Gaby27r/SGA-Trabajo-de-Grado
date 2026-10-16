@@ -1,3 +1,4 @@
+
 import type {
     datos_crudos,
     datos_normalizados,
@@ -33,9 +34,7 @@ export function generarFactoresPreocupacion(
             nivel:
                 estudiante.racha_ausencias >= 5
                     ? "alto"
-                    : estudiante.racha_ausencias >= 3
-                        ? "medio"
-                        : "bajo",
+                    : "medio",
         });
     }
 
@@ -65,8 +64,10 @@ export function generarFactoresPreocupacion(
     }
 
     // Retardos
-    if (Number.isFinite(estudiante.tardanzas_estudiante) &&
-        estudiante.tardanzas_estudiante > 0) {
+    if (
+        Number.isFinite(estudiante.tardanzas_estudiante) &&
+        estudiante.tardanzas_estudiante > 0
+    ) {
         factores.push({
             variable: "tardanzas",
             titulo: "Retardos registrados",
@@ -123,7 +124,14 @@ export function generarFactoresPreocupacion(
             explicacion:
                 "Existen incidentes registrados que requieren revisión " +
                 "del contexto y seguimiento por parte del personal autorizado.",
-            nivel: graves > 0 ? "alto" : leves >= 3 ? "medio" : "bajo",
+            nivel:
+                graves > 0
+                    ? "alto"
+                    : leves >= 5
+                        ? "alto"
+                        : leves >= 3
+                            ? "medio"
+                            : "bajo",
         });
     }
 

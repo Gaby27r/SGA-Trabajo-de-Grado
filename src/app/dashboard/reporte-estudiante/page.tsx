@@ -69,9 +69,14 @@ function haRepetidoAnio(
 
   const texto = normalizarEstado(valor);
 
-  return ["si", "1", "true", "repitente", "repetido", "repetida"].includes(
-    texto
-  );
+  return [
+    "si",
+    "1",
+    "true",
+    "repitente",
+    "repetido",
+    "repetida",
+  ].includes(texto);
 }
 
 function obtenerNombreCurso(cursos: CursoRelacionado): string {
@@ -117,6 +122,7 @@ function obtenerFactores(
 ): Factor[] {
   const factores: Factor[] = [];
 
+  // Promedio del periodo 1
   if (promedioP1 !== null && promedioP1 < 3) {
     factores.push({
       titulo: "Promedio bajo en el periodo 1",
@@ -125,6 +131,7 @@ function obtenerFactores(
     });
   }
 
+  // Promedio del periodo 2
   if (promedioP2 !== null && promedioP2 < 3) {
     factores.push({
       titulo: "Promedio bajo en el periodo 2",
@@ -133,6 +140,7 @@ function obtenerFactores(
     });
   }
 
+  // Inasistencias frecuentes
   if (faltas >= 5) {
     factores.push({
       titulo: "Inasistencias frecuentes",
@@ -141,6 +149,7 @@ function obtenerFactores(
     });
   }
 
+  // Ausencias consecutivas
   if (maxConsecutivas >= 2) {
     factores.push({
       titulo: "Ausencias consecutivas",
@@ -149,6 +158,7 @@ function obtenerFactores(
     });
   }
 
+  // Retardos frecuentes
   if (retardos >= 5) {
     factores.push({
       titulo: "Retardos frecuentes",
@@ -157,10 +167,12 @@ function obtenerFactores(
     });
   }
 
-  const graves = estudiante.graves ?? 0;
-  const leves = estudiante.leves ?? 0;
+  // Anotaciones disciplinarias
+  const graves = Math.max(0, estudiante.graves ?? 0);
+  const leves = Math.max(0, estudiante.leves ?? 0);
   const anotaciones = estudiante.total_anotaciones ?? 0;
 
+  // Las anotaciones graves siempre se clasifican como Alto.
   if (graves > 0) {
     factores.push({
       titulo: "Anotaciones graves",
@@ -169,14 +181,29 @@ function obtenerFactores(
     });
   }
 
+  // NUEVA REGLA PARA ANOTACIONES LEVES:
+  // 0-2: Informativo
+  // 3-4: Medio
+  // 5 o más: Alto
   if (leves > 0) {
+    let nivelLeves: Factor["nivel"];
+
+    if (leves >= 5) {
+      nivelLeves = "Alto";
+    } else if (leves >= 3) {
+      nivelLeves = "Medio";
+    } else {
+      nivelLeves = "Informativo";
+    }
+
     factores.push({
       titulo: "Anotaciones leves",
       detalle: `Se registran ${leves} anotaciones leves.`,
-      nivel: "Informativo",
+      nivel: nivelLeves,
     });
   }
 
+  // Si hay anotaciones, pero no están desglosadas en leves o graves.
   if (anotaciones > 0 && graves === 0 && leves === 0) {
     factores.push({
       titulo: "Anotaciones registradas",
@@ -185,6 +212,7 @@ function obtenerFactores(
     });
   }
 
+  // Año escolar repetido
   if (haRepetidoAnio(estudiante.anio_repetido)) {
     factores.push({
       titulo: "Año escolar repetido",
@@ -193,6 +221,7 @@ function obtenerFactores(
     });
   }
 
+  // Información socioeconómica
   if (estudiante.estrato != null) {
     factores.push({
       titulo: "Información socioeconómica registrada",
@@ -248,6 +277,7 @@ export default async function ReporteEstudiantePage() {
           estudiantes={[]}
           rol={perfil.rol}
           conFactoresAltos={0}
+          cursosProfesor={cursosProfesor}
         />
       );
     }
@@ -266,8 +296,10 @@ export default async function ReporteEstudiantePage() {
     );
   }
 
-  const { data: estudiantesData, error: errorEstudiantes } =
-    await consultaEstudiantes;
+  const {
+    data: estudiantesData,
+    error: errorEstudiantes,
+  } = await consultaEstudiantes;
 
   if (errorEstudiantes) {
     throw new Error(
@@ -284,6 +316,7 @@ export default async function ReporteEstudiantePage() {
         estudiantes={[]}
         rol={perfil.rol}
         conFactoresAltos={0}
+        cursosProfesor={cursosProfesor}
       />
     );
   }
@@ -321,9 +354,7 @@ export default async function ReporteEstudiantePage() {
   const crudos = await obtenerDatosEstudiantes();
   const riesgos = await encontrar_riesgo(crudos);
 
-  // Conserva el enlace por nombre del modelo actual.
-  // La asociación por ID debe implementarse cuando el modelo
-  // también devuelva id_estudiante.
+  // Conserva la asociación por nombre del modelo actual.
   const riesgoPorNombre = new Map<
     string,
     (typeof riesgos)[number]
@@ -334,7 +365,7 @@ export default async function ReporteEstudiantePage() {
     riesgoPorNombre.set(clave, riesgo);
   }
 
-  const reportes = estudiantes.map((estudiante) => {
+  const reportesCalculados = estudiantes.map((estudiante) => {
     const notasEstudiante = notas.filter(
       (nota) => nota.estudiante_id === estudiante.id
     );
@@ -401,6 +432,12 @@ export default async function ReporteEstudiantePage() {
     };
   });
 
+  // Los profesores ven TODOS los estudiantes de sus cursos asignados,
+  // independientemente de si tienen factores Altos, Medios, Informativos
+  // o si no presentan factores de preocupación.
+  // La consulta anterior ya restringe al profesor por curso_id.
+  const reportes = reportesCalculados;
+
   const conFactoresAltos = reportes.filter((estudiante) =>
     estudiante.factores.some((factor) => factor.nivel === "Alto")
   ).length;
@@ -410,6 +447,7 @@ export default async function ReporteEstudiantePage() {
       estudiantes={reportes}
       rol={perfil.rol}
       conFactoresAltos={conFactoresAltos}
+      cursosProfesor={cursosProfesor}
     />
   );
 }
