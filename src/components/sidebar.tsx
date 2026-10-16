@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GraduationCap, LayoutGrid, Users, UserRound, CalendarDays, ClipboardCheck, BookOpen } from "lucide-react";
+import { GraduationCap, LayoutGrid, Users, UserRound, CalendarDays, ClipboardCheck, BookOpen,FileText } from "lucide-react";
 
 const NAV = [
   { href: "/dashboard", label: "Inicio", icon: LayoutGrid, roles: ["coordinador"] },
@@ -13,6 +13,7 @@ const NAV = [
   { href: "/dashboard/seguimiento", label: "Seguimiento", icon: ClipboardCheck, roles: ["coordinador"] },
   { href: "/dashboard/profesor", label: "Mis estudiantes", icon: ClipboardCheck, roles: ["profesor"] },
   { href: "/dashboard/estudiante", label: "Mi información", icon: BookOpen, roles: ["estudiante"] },
+  { href: "/dashboard/reporte-estudiante",label: "Reporte de estudiante", icon: FileText,roles: ["coordinador", "profesor"]},
 ];
 
 export function Sidebar({ role = "coordinador" }: { role?: "coordinador" | "profesor" | "estudiante" }) {
