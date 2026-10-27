@@ -1,3 +1,4 @@
+
 export type RolSGA = "coordinador" | "profesor" | "estudiante";
 
 export type Curso = {
@@ -94,5 +95,6 @@ export type Asistencia = {
   profesor_id: string | null;
   fecha: string;
   estado: EstadoAsistencia;
+  tardanza?: boolean;
   observacion: string | null;
 };

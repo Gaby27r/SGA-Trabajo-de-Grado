@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -49,6 +48,14 @@ type ProfesorManagerProps = {
   materias: Materia[];
 };
 
+function normalizar(texto: string | null | undefined): string {
+  return (texto ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es")
+    .trim();
+}
+
 export function ProfesorManager({
   estudiantes,
   notas,
@@ -70,20 +77,59 @@ export function ProfesorManager({
 
   const [editing, setEditing] = useState<Estudiante | null>(null);
 
-  const lista = useMemo(() => {
-    const q = search.toLowerCase().trim();
+  // Recordar los IDs recibidos para detectar estudiantes nuevos.
+  const previousStudentIds = useRef<string[]>(
+    estudiantes.map((e) => e.id)
+  );
 
-    return estudiantes.filter(
-      (e) =>
-        !q ||
-        e.nombre_completo.toLowerCase().includes(q)
+  // Sincronizar la selección cuando se actualiza la lista del servidor.
+  useEffect(() => {
+    const currentIds = estudiantes.map((e) => e.id);
+    const previousIds = previousStudentIds.current;
+
+    const nuevos = estudiantes.filter(
+      (e) => !previousIds.includes(e.id)
     );
+
+    if (nuevos.length > 0) {
+      // Seleccionar el último estudiante incorporado.
+      setSelectedId(nuevos[nuevos.length - 1].id);
+    } else if (!currentIds.includes(selectedId)) {
+      // Mantener una selección válida.
+      setSelectedId(estudiantes[0]?.id ?? "");
+    }
+
+    previousStudentIds.current = currentIds;
+  }, [estudiantes, selectedId]);
+
+  // Buscar por nombre completo o documento, ignorando las tildes.
+  const lista = useMemo(() => {
+    const q = normalizar(search);
+
+    return [...estudiantes]
+      .filter((e) => {
+        const nombre = normalizar(e.nombre_completo);
+        const documento = normalizar(e.documento);
+
+        return (
+          !q ||
+          nombre.includes(q) ||
+          documento.includes(q)
+        );
+      })
+      .sort((a, b) =>
+        (a.nombre_completo ?? "").localeCompare(
+          b.nombre_completo ?? "",
+          "es",
+          { sensitivity: "base" }
+        )
+      );
   }, [estudiantes, search]);
 
   const selected =
     estudiantes.find((e) => e.id === selectedId) ?? null;
 
-  // Obtener todas las notas del estudiante seleccionado.
+  // Obtener las notas del estudiante seleccionado.
   const selectedGrades = useMemo(
     () =>
       notas.filter(
@@ -102,7 +148,6 @@ export function ProfesorManager({
   );
 
   // Calcular el promedio directamente desde las calificaciones.
-  // No se consulta ni se utiliza vista_promedios_periodo.
   const avg = (p: number): string => {
     const valores = selectedGrades
       .filter(
@@ -130,7 +175,7 @@ export function ProfesorManager({
       (a) => a.estado === estado
     ).length;
 
-  // Calcular la mayor secuencia de días consecutivos con faltas.
+  // Calcular la secuencia máxima de días consecutivos con faltas.
   const maxConsecutiveAbsences = useMemo(() => {
     const dias = [
       ...new Set(
@@ -150,7 +195,8 @@ export function ProfesorManager({
         const fechaAnterior = new Date(`${anterior}T00:00:00`);
 
         const diferencia = Math.round(
-          (fechaActual.getTime() - fechaAnterior.getTime()) /
+          (fechaActual.getTime() -
+            fechaAnterior.getTime()) /
             86400000
         );
 
@@ -173,13 +219,14 @@ export function ProfesorManager({
         <div className="border-b border-rule p-4">
           <div className="flex items-center justify-between">
             <p className="font-display text-lg text-ink">
-              Estudiantes ({estudiantes.length})
+              Mis estudiantes ({estudiantes.length})
             </p>
 
             <button
               type="button"
               className="rounded-sm p-2 hover:bg-rule/30"
               title="Agregar estudiante"
+              aria-label="Agregar estudiante"
               onClick={() => {
                 setEditing(null);
                 setStudentOpen(true);
@@ -189,12 +236,18 @@ export function ProfesorManager({
             </button>
           </div>
 
+          <p className="mt-1 text-xs text-ink-soft">
+            {search.trim()
+              ? `${lista.length} resultado(s) de búsqueda`
+              : "Estudiantes de tus cursos asignados"}
+          </p>
+
           <div className="relative mt-3">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-soft" />
 
             <TextInput
               className="pl-8"
-              placeholder="Buscar estudiante..."
+              placeholder="Buscar por nombre o documento..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -218,15 +271,29 @@ export function ProfesorManager({
               </p>
 
               <p className="text-xs text-ink-soft">
-                {e.cursos?.nombre ?? "Sin curso"} · {e.documento}
+                {e.cursos?.nombre ?? "Sin curso"} ·{" "}
+                {e.documento || "Sin documento"}
               </p>
             </button>
           ))}
 
           {!lista.length && (
-            <p className="p-5 text-sm text-ink-soft">
-              No hay estudiantes.
-            </p>
+            <div className="p-5 text-sm text-ink-soft">
+              {search.trim() ? (
+                <>
+                  No se encontraron estudiantes para "{search}".
+                  <button
+                    type="button"
+                    className="ml-1 underline"
+                    onClick={() => setSearch("")}
+                  >
+                    Limpiar búsqueda
+                  </button>
+                </>
+              ) : (
+                "No hay estudiantes asignados a tus cursos."
+              )}
+            </div>
           )}
         </div>
       </section>
@@ -244,7 +311,7 @@ export function ProfesorManager({
 
                 <p className="mt-1 text-sm text-ink-soft">
                   {selected.cursos?.nombre ?? "Sin curso"} · Documento{" "}
-                  {selected.documento}
+                  {selected.documento || "Sin documento"}
                 </p>
               </div>
 
@@ -491,7 +558,9 @@ export function ProfesorManager({
         </section>
       ) : (
         <div className="rounded-sm border border-rule-strong bg-paper-raised p-10 text-center text-ink-soft">
-          Selecciona un estudiante.
+          {estudiantes.length === 0
+            ? "No hay estudiantes asignados a tus cursos."
+            : "Selecciona un estudiante."}
         </div>
       )}
 
@@ -585,6 +654,14 @@ function GradeForm({
   const [nota, setNota] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Actualizar la materia y el periodo cuando cambie el estudiante.
+  useEffect(() => {
+    setMateria(materias[0]?.materia ?? "");
+    setPeriodo(defaultPeriod);
+    setNota("");
+    setError(null);
+  }, [estudiante?.id, materias, defaultPeriod]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -846,19 +923,26 @@ function StudentForm({
   const [repite, setRepite] = useState("NO");
   const [matriculado, setMatriculado] = useState("MATRICULA");
   const [reuniones, setReuniones] = useState(false);
+  const [correo, setCorreo] = useState("");
+  const [contrasena, setContrasena] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Sincronizar el formulario al abrirlo para otro estudiante.
-  const [formKey, setFormKey] = useState("");
-
-  const currentKey = open
+  // Reiniciar el formulario al abrirlo para otro estudiante.
+  const formKey = open
     ? estudiante?.id ?? "nuevo"
     : "cerrado";
 
-  if (formKey !== currentKey) {
-    setFormKey(currentKey);
+  const previousFormKey = useRef("");
+
+  useEffect(() => {
+    if (previousFormKey.current === formKey) return;
+
+    previousFormKey.current = formKey;
+
+    if (!open) return;
+
     setNombre(estudiante?.nombre_completo ?? "");
     setDocumento(estudiante?.documento ?? "");
     setCurso(estudiante?.curso_id ?? cursos[0]?.id ?? "");
@@ -871,8 +955,10 @@ function StudentForm({
     setRepite(estudiante?.anio_repetido ?? "NO");
     setMatriculado(estudiante?.matriculado ?? "MATRICULA");
     setReuniones(estudiante?.reuniones_padres ?? false);
+    setCorreo("");
+    setContrasena("");
     setError(null);
-  }
+  }, [formKey, open, estudiante, cursos]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -898,7 +984,11 @@ function StudentForm({
 
       const resultado = estudiante
         ? await actualizarEstudiante(estudiante.id, datos)
-        : await crearEstudiante(datos);
+        : await crearEstudiante({
+            ...datos,
+            correo,
+            contrasena,
+          });
 
       if (resultado.error) {
         setError(resultado.error);
@@ -946,6 +1036,33 @@ function StudentForm({
             onChange={(e) => setDocumento(e.target.value)}
           />
         </Field>
+
+        {!estudiante && (
+          <>
+            <Field label="Correo de acceso" htmlFor="s-correo">
+              <TextInput
+                id="s-correo"
+                type="email"
+                required
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+                autoComplete="email"
+              />
+            </Field>
+
+            <Field label="Contraseña inicial" htmlFor="s-contrasena">
+              <TextInput
+                id="s-contrasena"
+                type="password"
+                required
+                minLength={8}
+                value={contrasena}
+                onChange={(e) => setContrasena(e.target.value)}
+                autoComplete="new-password"
+              />
+            </Field>
+          </>
+        )}
 
         <Field label="Curso" htmlFor="s-curso">
           <Select

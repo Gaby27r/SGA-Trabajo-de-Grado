@@ -16,7 +16,7 @@ export default async function ProfesorPage() {
     );
   }
 
-  // Consultar los cursos y materias asignados al profesor.
+  // 1. Consultar cursos y materias asignados al profesor.
   const { data: horario, error: errorHorario } = await supabase
     .from("horario_clases")
     .select("id, curso_id, materia, profesor_id, cursos(nombre)")
@@ -24,6 +24,8 @@ export default async function ProfesorPage() {
     .eq("es_descanso", false);
 
   if (errorHorario) {
+    console.error("[Mis estudiantes] Error consultando horario:", errorHorario);
+
     throw new Error(
       `No se pudo consultar el horario: ${errorHorario.message}`
     );
@@ -35,9 +37,12 @@ export default async function ProfesorPage() {
     ),
   ];
 
-  // Consultar estudiantes de los cursos asignados.
+  console.log("[Mis estudiantes] Profesor ID:", perfil.profesor_id);
+  console.log("[Mis estudiantes] Cursos asignados:", courseIds);
+
+  // 2. Consultar estudiantes de los cursos asignados.
   const { data: estudiantesData, error: errorEstudiantes } =
-    courseIds.length
+    courseIds.length > 0
       ? await supabase
           .from("estudiantes")
           .select("*, cursos(nombre)")
@@ -46,6 +51,11 @@ export default async function ProfesorPage() {
       : { data: [], error: null };
 
   if (errorEstudiantes) {
+    console.error(
+      "[Mis estudiantes] Error consultando estudiantes:",
+      errorEstudiantes
+    );
+
     throw new Error(
       `No se pudieron consultar los estudiantes: ${errorEstudiantes.message}`
     );
@@ -54,53 +64,112 @@ export default async function ProfesorPage() {
   const estudiantes = estudiantesData ?? [];
   const ids = estudiantes.map((e) => e.id);
 
-  // Consultar las calificaciones directamente desde la base de datos.
-  // No se utiliza la vista de promedios.
-  const { data: notasData, error: errorNotas } = ids.length
-    ? await supabase
-        .from("calificaciones")
-        .select("*")
-        .in("estudiante_id", ids)
-    : { data: [], error: null };
+  console.log(
+    "[Mis estudiantes] Total de estudiantes cargados:",
+    estudiantes.length
+  );
+
+  // 3. Consultar calificaciones de los estudiantes.
+  const { data: notasData, error: errorNotas } =
+    ids.length > 0
+      ? await supabase
+          .from("calificaciones")
+          .select("*")
+          .in("estudiante_id", ids)
+      : { data: [], error: null };
 
   if (errorNotas) {
+    console.error("[Mis estudiantes] Error consultando notas:", errorNotas);
+
     throw new Error(
       `No se pudieron consultar las calificaciones: ${errorNotas.message}`
     );
   }
 
-  // Consultar asistencias de los estudiantes.
-  const { data: asistenciasData, error: errorAsistencias } =
-    ids.length
-      ? await supabase
-          .from("asistencias")
-          .select("*")
-          .in("estudiante_id", ids)
-          .order("fecha", { ascending: false })
-      : { data: [], error: null };
+  // 4. Consultar asistencias por estudiante y paginar los resultados.
+  // Esto evita depender de una única consulta limitada a 2000 filas.
+  const asistenciasData: Record<string, unknown>[] = [];
 
-  if (errorAsistencias) {
-    throw new Error(
-      `No se pudo consultar la asistencia: ${errorAsistencias.message}`
+  for (const estudianteId of ids) {
+    let desde = 0;
+    const tamanoPagina = 500;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from("asistencias")
+        .select("*")
+        .eq("estudiante_id", estudianteId)
+        .order("fecha", { ascending: false })
+        .range(desde, desde + tamanoPagina - 1);
+
+      if (error) {
+        console.error(
+          "[Mis estudiantes] Error consultando asistencia:",
+          estudianteId,
+          error
+        );
+
+        throw new Error(
+          `No se pudo consultar la asistencia: ${error.message}`
+        );
+      }
+
+      const pagina = data ?? [];
+      asistenciasData.push(...pagina);
+
+      if (pagina.length < tamanoPagina) {
+        break;
+      }
+
+      desde += tamanoPagina;
+    }
+  }
+
+  console.log(
+    "[Mis estudiantes] Total de asistencias recuperadas:",
+    asistenciasData.length
+  );
+
+  // Depuración temporal: comprobar las asistencias de Victor.
+  const estudiantePrueba = estudiantes.find(
+    (e) =>
+      e.nombre_completo?.toLowerCase().trim() ===
+      "victor peñaranda florez"
+  );
+
+  if (estudiantePrueba) {
+    console.log(
+      "[Mis estudiantes] Estudiante de prueba:",
+      estudiantePrueba.id
+    );
+
+    console.log(
+      "[Mis estudiantes] Asistencias del estudiante de prueba:",
+      asistenciasData.filter(
+        (a) => a.estudiante_id === estudiantePrueba.id
+      )
     );
   }
 
-  // Consultar los cursos para el formulario de estudiantes.
-  const { data: cursosData, error: errorCursos } = courseIds.length
-    ? await supabase
-        .from("cursos")
-        .select("id, nombre, jornada, created_at")
-        .in("id", courseIds)
-        .order("nombre")
-    : { data: [], error: null };
+  // 5. Consultar cursos para el formulario de estudiantes.
+  const { data: cursosData, error: errorCursos } =
+    courseIds.length > 0
+      ? await supabase
+          .from("cursos")
+          .select("id, nombre, jornada, created_at")
+          .in("id", courseIds)
+          .order("nombre")
+      : { data: [], error: null };
 
   if (errorCursos) {
+    console.error("[Mis estudiantes] Error consultando cursos:", errorCursos);
+
     throw new Error(
       `No se pudieron consultar los cursos: ${errorCursos.message}`
     );
   }
 
-  // Crear una lista sin materias duplicadas por curso.
+  // 6. Crear una lista de materias sin duplicados por curso.
   const materias = [
     ...new Map(
       (horario ?? []).map((h) => [
@@ -129,7 +198,7 @@ export default async function ProfesorPage() {
       <ProfesorManager
         estudiantes={estudiantes}
         notas={notasData ?? []}
-        asistencias={asistenciasData ?? []}
+        asistencias={asistenciasData as never[]}
         cursos={cursosData ?? []}
         materias={materias}
       />
