@@ -6,6 +6,7 @@ import {
   encontrar_riesgo,
 } from "@/lib/riesgo/proceso";
 import ReporteEstudianteClient from "./ReporteEstudianteClient";
+import { enviarAlertasDeRiesgo } from "@/lib/email/alertas-riesgo";
 
 type CursoRelacionado =
   | { nombre: string }
@@ -437,6 +438,7 @@ export default async function ReporteEstudiantePage() {
   // o si no presentan factores de preocupación.
   // La consulta anterior ya restringe al profesor por curso_id.
   const reportes = reportesCalculados;
+
 
   const conFactoresAltos = reportes.filter((estudiante) =>
     estudiante.factores.some((factor) => factor.nivel === "Alto")
