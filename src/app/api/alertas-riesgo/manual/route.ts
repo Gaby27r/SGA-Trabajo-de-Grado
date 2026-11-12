@@ -11,236 +11,17 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Nivel = "Alto" | "Medio" | "Informativo";
-
-type Factor = {
-  titulo: string;
-  detalle: string;
-  nivel: Nivel;
-};
-
-function normalizar(valor: unknown): string {
-  return String(valor ?? "")
-    .trim()
-    .toLocaleLowerCase("es")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ");
-}
-
-function promedio(notas: number[]): number | null {
-  const validas = notas.filter(Number.isFinite);
-
-  if (!validas.length) return null;
-
-  return validas.reduce((total, nota) => total + nota, 0) / validas.length;
-}
-
-function maxConsecutivas(fechas: string[]): number {
-  const ordenadas = [...new Set(fechas)].sort();
-  let maximo = 0;
-  let consecutivas = 0;
-  let anterior: Date | null = null;
-
-  for (const fecha of ordenadas) {
-    const actual = new Date(`${fecha}T00:00:00Z`);
-
-    if (
-      anterior &&
-      Math.round(
-        (actual.getTime() - anterior.getTime()) / 86400000,
-      ) === 1
-    ) {
-      consecutivas++;
-    } else {
-      consecutivas = 1;
-    }
-
-    maximo = Math.max(maximo, consecutivas);
-    anterior = actual;
-  }
-
-  return maximo;
-}
-
-function semanaColombia(): { inicio: string; fin: string } {
-  const partes = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-
-  const obtener = (tipo: string) =>
-    partes.find((parte) => parte.type === tipo)?.value ?? "";
-
-  const fecha = new Date(
-    `${obtener("year")}-${obtener("month")}-${obtener("day")}T00:00:00Z`,
-  );
-
-  const diasDesdeLunes = (fecha.getUTCDay() + 6) % 7;
-  fecha.setUTCDate(fecha.getUTCDate() - diasDesdeLunes);
-
-  const inicio = fecha.toISOString().slice(0, 10);
-  fecha.setUTCDate(fecha.getUTCDate() + 7);
-
-  return {
-    inicio,
-    fin: fecha.toISOString().slice(0, 10),
-  };
-}
-
-function escaparHtml(valor: unknown): string {
-  return String(valor ?? "").replace(/[&<>"']/g, (caracter) => {
-    const entidades: Record<string, string> = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    };
-
-    return entidades[caracter];
-  });
-}
-
-export function formatoPromedio(valor: number | null): string {
-  return valor === null ? "Sin datos" : valor.toFixed(2);
-}
-
-export function porcentajeDesdeModelo(
-  valor: number | null | undefined,
-): number | null {
-  if (
-    valor === null ||
-    valor === undefined ||
-    !Number.isFinite(valor)
-  ) {
-    return null;
-  }
-
-  // El modelo entrega la probabilidad en escala de 0 a 1.
-  // Se convierte a porcentaje para mostrarla igual que en el informe.
-  return valor * 100;
-}
-
-export function formatoPorcentajeModelo(valor: number | null): string {
-  return valor === null ? "No disponible" : `${valor.toFixed(1)} %`;
-}
-
-export function crearFactores(
-  estudiante: {
-    estrato: number | null;
-    anio_repetido: string | number | boolean | null;
-    total_anotaciones: number | null;
-    graves: number | null;
-    leves: number | null;
-  },
-  p1: number | null,
-  p2: number | null,
-  faltas: number,
-  retardos: number,
-  consecutivas: number,
-): Factor[] {
-  const factores: Factor[] = [];
-
-  if (p1 !== null && p1 < 3) {
-    factores.push({
-      titulo: "Promedio bajo en el periodo 1",
-      detalle: `Promedio registrado: ${p1.toFixed(2)}.`,
-      nivel: "Alto",
-    });
-  }
-
-  if (p2 !== null && p2 < 3) {
-    factores.push({
-      titulo: "Promedio bajo en el periodo 2",
-      detalle: `Promedio registrado: ${p2.toFixed(2)}.`,
-      nivel: "Alto",
-    });
-  }
-
-  if (faltas >= 5) {
-    factores.push({
-      titulo: "Inasistencias frecuentes",
-      detalle: `Se registran ${faltas} faltas.`,
-      nivel: faltas >= 10 ? "Alto" : "Medio",
-    });
-  }
-
-  if (consecutivas >= 2) {
-    factores.push({
-      titulo: "Ausencias consecutivas",
-      detalle: `Se registran hasta ${consecutivas} faltas consecutivas.`,
-      nivel: consecutivas >= 4 ? "Alto" : "Medio",
-    });
-  }
-
-  if (retardos >= 5) {
-    factores.push({
-      titulo: "Retardos frecuentes",
-      detalle: `Se registran ${retardos} retardos.`,
-      nivel: retardos >= 10 ? "Alto" : "Medio",
-    });
-  }
-
-  const graves = Math.max(0, estudiante.graves ?? 0);
-  const leves = Math.max(0, estudiante.leves ?? 0);
-  const total = Math.max(0, estudiante.total_anotaciones ?? 0);
-
-  if (graves > 0) {
-    factores.push({
-      titulo: "Anotaciones graves",
-      detalle: `Se registran ${graves} anotaciones graves.`,
-      nivel: "Alto",
-    });
-  }
-
-  if (leves > 0) {
-    factores.push({
-      titulo: "Anotaciones leves",
-      detalle: `Se registran ${leves} anotaciones leves.`,
-      nivel: leves >= 5 ? "Alto" : leves >= 3 ? "Medio" : "Informativo",
-    });
-  }
-
-  if (total > 0 && graves === 0 && leves === 0) {
-    factores.push({
-      titulo: "Anotaciones registradas",
-      detalle: `Total de anotaciones: ${total}.`,
-      nivel: "Informativo",
-    });
-  }
-
-  const repetido = estudiante.anio_repetido;
-
-  const repitio =
-    typeof repetido === "boolean"
-      ? repetido
-      : typeof repetido === "number"
-        ? repetido === 1
-        : ["si", "1", "true", "repitente", "repetido", "repetida"].includes(
-            normalizar(repetido),
-          );
-
-  if (repitio) {
-    factores.push({
-      titulo: "Año escolar repetido",
-      detalle: "El registro indica que el estudiante ha repetido un año.",
-      nivel: "Medio",
-    });
-  }
-
-  if (estudiante.estrato !== null) {
-    factores.push({
-      titulo: "Información socioeconómica registrada",
-      detalle: `Estrato registrado: ${estudiante.estrato}. Este dato por sí solo no determina el riesgo.`,
-      nivel: "Informativo",
-    });
-  }
-
-  return factores;
-}
+import {
+  normalizar,
+  promedio,
+  maxConsecutivas,
+  semanaColombia,
+  escaparHtml,
+  formatoPromedio,
+  porcentajeDesdeModelo,
+  formatoPorcentajeModelo,
+  crearFactores,
+} from "./helpers";
 
 export async function POST(request: NextRequest) {
   let transport: ReturnType<typeof createTransport> | null = null;
@@ -872,5 +653,69 @@ export async function POST(request: NextRequest) {
     );
   } finally {
     transport?.close();
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const perfil = await getPerfil();
+
+    if (!perfil) {
+      return NextResponse.json(
+        { error: "Debes iniciar sesión para consultar el historial de alertas." },
+        { status: 401 },
+      );
+    }
+
+    if (perfil.rol === "estudiante") {
+      return NextResponse.json(
+        { error: "No tienes permisos para consultar el historial de alertas." },
+        { status: 403 },
+      );
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json(
+        { error: "Configuración incompleta de Supabase en el servidor." },
+        { status: 500 },
+      );
+    }
+
+    const { searchParams } = request.nextUrl;
+    const estudianteId = searchParams.get("estudianteId") || searchParams.get("estudiante_id");
+    const limitParam = parseInt(searchParams.get("limit") || "50", 10);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 50;
+
+    const supabase = createSupabaseAdmin(supabaseUrl, serviceRoleKey);
+    let query = supabase
+      .from("alertas_riesgo_email")
+      .select("*")
+      .order("creado_at", { ascending: false })
+      .limit(limit);
+
+    if (estudianteId) {
+      query = query.eq("estudiante_id", estudianteId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      return NextResponse.json(
+        { error: `Error consultando alertas: ${error.message}` },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ ok: true, data }, { status: 200 });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Error interno al consultar el historial de alertas.",
+      },
+      { status: 500 },
+    );
   }
 }

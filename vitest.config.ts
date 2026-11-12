@@ -5,7 +5,9 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    setupFiles: ["./tests/setup.ts"],
     testTimeout: 20000,
+    exclude: ["tests/e2e/**", "node_modules/**"],
   },
   resolve: {
     alias: {

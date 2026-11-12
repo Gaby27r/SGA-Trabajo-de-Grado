@@ -10,7 +10,7 @@ import {
   porcentajeDesdeModelo,
   formatoPorcentajeModelo,
   crearFactores,
-} from "@/app/api/alertas-riesgo/manual/route";
+} from "@/app/api/alertas-riesgo/manual/helpers";
 import type { estudiante_normalizado, datos_crudos, datos_normalizados } from "@/app/Interfaces";
 
 describe("Plan de Pruebas: 5. Casos de pruebas unitarias", () => {

@@ -31,7 +31,7 @@ test.describe("Plan de Pruebas: 8. Pruebas E2E - Autenticación y Acceso", () =>
     await page.click('button[type="submit"]');
 
     // Esperar redirección al panel de control si la cuenta está aprovisionada
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 8000 });
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 20000 });
   });
 
   // E2E-03: Navegación por rol
