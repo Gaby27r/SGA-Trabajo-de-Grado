@@ -34,7 +34,7 @@ export async function obtenerDatosEstudiantes(): Promise<datos_crudos[]> {
 // 2. UTILIDADES
 // ============================================================
 
-function limitar(
+export function limitar(
   valor: number,
   minimo = 0,
   maximo = 1
@@ -42,7 +42,7 @@ function limitar(
   return Math.min(maximo, Math.max(minimo, valor));
 }
 
-function numeroValido(valor: unknown): number | null {
+export function numeroValido(valor: unknown): number | null {
   if (
     valor === null ||
     valor === undefined ||
@@ -61,7 +61,7 @@ function numeroValido(valor: unknown): number | null {
   return Number.isFinite(numero) ? numero : null;
 }
 
-function normalizarTexto(valor: unknown): string {
+export function normalizarTexto(valor: unknown): string {
   if (typeof valor !== "string") return "";
 
   return valor
@@ -76,7 +76,7 @@ function normalizarTexto(valor: unknown): string {
 // 3. NORMALIZACIÓN DE LAS 12 VARIABLES
 // ============================================================
 
-async function normalizar_crudos(
+export async function normalizar_crudos(
   usuario_crudo: datos_crudos
 ): Promise<datos_normalizados> {
 
@@ -573,7 +573,7 @@ const PENDIENTE_LOGISTICA = 6;
 // 7. CÁLCULO DEL RIESGO
 // ============================================================
 
-function posible_riesgo_estudiante(
+export function posible_riesgo_estudiante(
   estudiante: estudiante_normalizado
 ): riesgo_estudiante {
   let sumaPonderada = 0;

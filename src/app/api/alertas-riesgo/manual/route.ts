@@ -104,11 +104,11 @@ function escaparHtml(valor: unknown): string {
   });
 }
 
-function formatoPromedio(valor: number | null): string {
+export function formatoPromedio(valor: number | null): string {
   return valor === null ? "Sin datos" : valor.toFixed(2);
 }
 
-function porcentajeDesdeModelo(
+export function porcentajeDesdeModelo(
   valor: number | null | undefined,
 ): number | null {
   if (
@@ -124,11 +124,11 @@ function porcentajeDesdeModelo(
   return valor * 100;
 }
 
-function formatoPorcentajeModelo(valor: number | null): string {
+export function formatoPorcentajeModelo(valor: number | null): string {
   return valor === null ? "No disponible" : `${valor.toFixed(1)} %`;
 }
 
-function crearFactores(
+export function crearFactores(
   estudiante: {
     estrato: number | null;
     anio_repetido: string | number | boolean | null;
