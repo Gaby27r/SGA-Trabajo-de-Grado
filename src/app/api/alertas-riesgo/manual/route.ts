@@ -575,8 +575,8 @@ export async function POST(request: NextRequest) {
       .from("alertas_riesgo_email")
       .delete()
       .eq("estudiante_id", estudianteId)
-      .gte("creado_at", `${semana.inicio}T00:00:00-05:00`)
-      .lt("creado_at", `${semana.fin}T00:00:00-05:00`);
+      .gte("creado_at", semana.inicio)
+      .lt("creado_at", semana.fin);
 
     if (errorEliminar) {
       console.error(
